@@ -1,47 +1,21 @@
-name: CI/CD Pipeline (No Docker Hub)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - name: myapp
+          image: myapp:latest   # 👈 no Docker Hub needed
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
 
-on:
-  push:
-    branches: [ "main" ]
-
-jobs:
-  build-test-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      # 1️⃣ Checkout source
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # 2️⃣ Set up Docker
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
-
-      # 3️⃣ Build Docker image
-      - name: Build Docker image
-        run: docker build -t myapp:latest .
-
-      # 4️⃣ Run tests
-      - name: Run tests
-        run: docker run --rm myapp:latest pytest || echo "No tests found"
-
-      # 5️⃣ Save Docker image as tar (to be loaded into Kubernetes later)
-      - name: Save image
-        run: docker save myapp:latest -o myapp.tar
-
-      # 6️⃣ Set up kubectl (for Minikube or local K8s)
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: v1.28.0
-
-      # 7️⃣ Load image into Minikube & Deploy
-      - name: Deploy to Kubernetes
-        run: |
-          minikube image load myapp:latest
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-
-      # 8️⃣ Verify deployment
-      - name: Verify
-        run: kubectl rollout status deployment/myapp-deployment
